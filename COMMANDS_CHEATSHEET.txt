@@ -1,0 +1,186 @@
+================================================================================
+                     AUTOGLUON QUICK START COMMANDS
+================================================================================
+
+STEP 1: INSTALL DEPENDENCIES
+--------------------------------------------------------------------------------
+pip install -r requirements.txt
+
+(This will install AutoGluon, pandas, numpy, scikit-learn, matplotlib, etc.)
+
+
+STEP 2: RUN THE MODEL - THREE OPTIONS
+--------------------------------------------------------------------------------
+
+OPTION A: INTERACTIVE (EASIEST - RECOMMENDED FOR BEGINNERS)
+------------------------------------------------------------
+python run_model.py
+
+The script will ask you questions step-by-step:
+  ✓ Enter your CSV file path (or type 'demo' to test)
+  ✓ Select training time
+  ✓ Select quality level
+  ✓ Choose evaluation metric
+  ✓ Start training automatically
+
+
+OPTION B: BASIC PYTHON SCRIPT (FOR QUICK TESTING)
+--------------------------------------------------
+Create file: my_run.py
+
+from autogluon_imbalanced_model import *
+
+# Load data
+train_data, test_data = load_and_prepare_data('your_data.csv', 'target')
+
+# Train model (30 minutes, good quality)
+predictor = train_autogluon_model(train_data, time_limit=1800, preset='good_quality')
+
+# Evaluate
+results = evaluate_model(predictor, test_data)
+optimal_threshold = find_optimal_threshold(results, metric='f1')
+results = evaluate_model(predictor, test_data, threshold=optimal_threshold)
+plot_evaluation_metrics(results)
+
+Then run:
+python my_run.py
+
+
+OPTION C: ADVANCED PIPELINE (FOR BEST RESULTS WITH SMOTE)
+----------------------------------------------------------
+Create file: my_advanced_run.py
+
+from advanced_autogluon_pipeline import ImbalancedClassificationPipeline
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Load and split data
+df = pd.read_csv('your_data.csv')
+train_data, test_data = train_test_split(df, test_size=0.2, stratify=df['target'])
+
+# Initialize and train
+pipeline = ImbalancedClassificationPipeline(target_column='target')
+predictor = pipeline.train_model(
+    train_data, 
+    time_limit=1800, 
+    preset='good_quality',
+    resampling_method='smote'
+)
+
+# Evaluate and save
+results = pipeline.comprehensive_evaluation(test_data)
+pipeline.plot_comprehensive_results()
+pipeline.save_results()
+
+Then run:
+python my_advanced_run.py
+
+
+STEP 3: USE THE TRAINED MODEL FOR PREDICTIONS
+--------------------------------------------------------------------------------
+from autogluon.tabular import TabularPredictor
+import pandas as pd
+
+# Load saved model
+predictor = TabularPredictor.load('./autogluon_models_YYYYMMDD_HHMMSS/')
+
+# Load new data
+new_data = pd.read_csv('new_data.csv')
+
+# Predict
+predictions = predictor.predict(new_data)
+probabilities = predictor.predict_proba(new_data)
+
+# Save results
+new_data['prediction'] = predictions
+new_data['probability'] = probabilities.iloc[:, 1]
+new_data.to_csv('predictions.csv', index=False)
+
+
+COMMON CONFIGURATIONS
+--------------------------------------------------------------------------------
+
+Training Time:
+  - 600 seconds (10 min)    = Quick test
+  - 1800 seconds (30 min)   = Good quality
+  - 3600 seconds (1 hour)   = High quality  
+  - 7200+ seconds (2+ hours) = Best quality
+
+Quality Presets:
+  - 'medium_quality'  = Fast, decent results
+  - 'good_quality'    = Balanced (recommended)
+  - 'high_quality'    = Better results, longer training
+  - 'best_quality'    = Best results (use for production)
+
+Evaluation Metrics (for imbalanced data):
+  - 'average_precision'  = Best for imbalanced (RECOMMENDED)
+  - 'roc_auc'           = Overall discriminative ability
+  - 'f1'                = Balance precision/recall
+  - 'recall'            = Minimize false negatives
+
+Resampling Methods (advanced pipeline):
+  - 'none'              = No resampling (sample weights only)
+  - 'smote'             = Synthetic minority oversampling
+  - 'adasyn'            = Adaptive synthetic sampling
+  - 'borderline_smote'  = Focus on decision boundary
+
+
+EXPECTED OUTPUT FILES
+--------------------------------------------------------------------------------
+✓ evaluation_plots.png (or comprehensive_evaluation.png)
+  - Confusion matrix
+  - Precision-Recall curve
+  - Feature importance
+  - ROC curve
+
+✓ autogluon_models_YYYYMMDD_HHMMSS/ (directory)
+  - Trained model files
+  - Can be loaded later for predictions
+
+✓ results.json (if using advanced pipeline)
+  - All evaluation metrics in JSON format
+
+
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+Problem: Missing packages
+Solution: pip install -r requirements.txt
+
+Problem: Out of memory
+Solution: Reduce time_limit, use 'medium_quality', or sample data
+
+Problem: Training too slow
+Solution: Reduce time_limit or use 'medium_quality' preset
+
+Problem: Poor minority class performance
+Solution: Use resampling_method='smote' and eval_metric='average_precision'
+
+Problem: File not found
+Solution: Use absolute path or check current directory
+
+
+QUICK TEST WITH DEMO DATA
+--------------------------------------------------------------------------------
+python run_model.py
+# When prompted for file path, type: demo
+# This creates sample data and runs the full pipeline
+
+
+SYSTEM REQUIREMENTS
+--------------------------------------------------------------------------------
+Minimum: Python 3.8+, 8GB RAM, 10GB disk space
+Recommended: Python 3.9+, 16GB+ RAM, 20GB+ disk space, multi-core CPU
+
+
+HELP & DOCUMENTATION
+--------------------------------------------------------------------------------
+- Full documentation: See README.md
+- Step-by-step guide: See HOW_TO_RUN.md
+- AutoGluon docs: https://auto.gluon.ai/
+- Configuration options: See config.py
+
+================================================================================
+                           YOU'RE READY TO GO!
+================================================================================
+
+Start with: python run_model.py

@@ -1,0 +1,233 @@
+"""
+QUICK START GUIDE - AutoGluon Imbalanced Classification
+========================================================
+
+This guide gets you started in 5 minutes!
+
+STEP 1: Install Dependencies
+-----------------------------
+pip install -r requirements.txt
+
+STEP 2: Prepare Your Data
+--------------------------
+Your CSV should have:
+- 24 numerical feature columns
+- 1 target column (binary: 0 for Pass, 1 for Decline)
+
+Example format:
+feature_1,feature_2,...,feature_24,target
+0.5,1.2,...,0.8,0
+1.1,0.3,...,1.5,1
+
+STEP 3: Choose Your Script
+---------------------------
+
+A) SIMPLE & QUICK → Use: autogluon_imbalanced_model.py
+   - Basic imbalanced handling with sample weights
+   - Fast to run
+   - Good for initial experiments
+
+B) ADVANCED & COMPREHENSIVE → Use: advanced_autogluon_pipeline.py
+   - Includes SMOTE/ADASYN resampling
+   - Multiple threshold optimization
+   - Comprehensive evaluation
+   - Best for production models
+
+STEP 4: Run the Script
+-----------------------
+
+Option A: Use Default Settings (Simplest)
+------------------------------------------
+python autogluon_imbalanced_model.py
+
+# Modify line 460-465 to load your data:
+train_data, test_data = load_and_prepare_data('your_data.csv', target_column='your_target_column_name')
+
+Option B: Custom Python Code
+-----------------------------
+from autogluon_imbalanced_model import *
+import pandas as pd
+
+# Load data
+df = pd.read_csv('your_data.csv')
+train_data, test_data = train_test_split(df, test_size=0.2, stratify=df['target'])
+
+# Train (adjust parameters as needed)
+predictor = train_autogluon_model(
+    train_data=train_data,
+    target_column='target',
+    time_limit=1800,        # 30 minutes (adjust as needed)
+    preset='good_quality',   # Options: 'medium_quality', 'good_quality', 'high_quality', 'best_quality'
+    eval_metric='roc_auc'   # Options: 'roc_auc', 'average_precision', 'f1'
+)
+
+# Evaluate
+results = evaluate_model(predictor, test_data, target_column='target')
+
+# Find optimal threshold
+optimal_threshold = find_optimal_threshold(results, metric='f1')
+
+# Re-evaluate with optimal threshold
+results_optimal = evaluate_model(predictor, test_data, threshold=optimal_threshold)
+
+# Plot results
+plot_evaluation_metrics(results_optimal)
+
+Option C: Advanced Pipeline with SMOTE
+---------------------------------------
+from advanced_autogluon_pipeline import ImbalancedClassificationPipeline
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Initialize
+pipeline = ImbalancedClassificationPipeline(target_column='target')
+
+# Load and split data
+df = pd.read_csv('your_data.csv')
+train_data, test_data = train_test_split(df, test_size=0.2, stratify=df['target'])
+
+# Train with SMOTE
+predictor = pipeline.train_model(
+    train_data=train_data,
+    time_limit=1800,
+    preset='good_quality',
+    use_sample_weights=True,
+    resampling_method='smote'  # Try: 'none', 'smote', 'adasyn', 'borderline_smote'
+)
+
+# Comprehensive evaluation
+results = pipeline.comprehensive_evaluation(test_data, thresholds=[0.3, 0.5, 0.7])
+
+# Plot and save
+pipeline.plot_comprehensive_results()
+pipeline.save_results()
+
+STEP 5: Adjust Configuration (Optional)
+----------------------------------------
+Edit config.py to customize:
+- Training time limit
+- Quality preset
+- Evaluation metrics
+- Hyperparameters for each model type
+- Imbalance handling strategy
+
+KEY PARAMETERS TO ADJUST:
+
+1. time_limit (seconds)
+   - 600 = 10 min (quick test)
+   - 1800 = 30 min (reasonable)
+   - 3600 = 1 hour (good quality)
+   - 7200+ = 2+ hours (best quality)
+
+2. preset
+   - 'medium_quality': Fast, decent results
+   - 'good_quality': Balanced (recommended for testing)
+   - 'high_quality': Better results, longer training
+   - 'best_quality': Best results, longest training (recommended for production)
+
+3. eval_metric (for highly imbalanced data)
+   - 'roc_auc': Good overall measure
+   - 'average_precision': Best for imbalanced (RECOMMENDED)
+   - 'f1': Balance precision/recall
+   - 'precision': Minimize false positives
+   - 'recall': Minimize false negatives
+
+4. resampling_method (in advanced pipeline)
+   - 'none': No resampling (use sample weights only)
+   - 'smote': Good for most cases
+   - 'adasyn': Adaptive synthetic sampling
+   - 'borderline_smote': Focus on borderline cases
+
+STEP 6: Interpret Results
+--------------------------
+
+Output files:
+1. Trained model → ./autogluon_models_YYYYMMDD_HHMMSS/
+2. Plots → evaluation_plots.png (or comprehensive_evaluation.png)
+3. Results → results.json
+
+Key metrics to check:
+- ROC-AUC > 0.80: Good discrimination
+- Average Precision > 0.50: Good for imbalanced data
+- F1 Score: Balance between precision and recall
+- Confusion Matrix: Check false positives and false negatives
+
+For your specific case (155:1 imbalance):
+- Focus on Average Precision and F1 score
+- Check recall (ability to catch declines)
+- Balance based on business cost of false positives vs false negatives
+
+STEP 7: Make Predictions on New Data
+-------------------------------------
+from autogluon.tabular import TabularPredictor
+
+# Load saved model
+predictor = TabularPredictor.load('./autogluon_models_YYYYMMDD_HHMMSS/')
+
+# Load new data
+new_data = pd.read_csv('new_data.csv')
+
+# Get predictions
+predictions = predictor.predict(new_data)  # Class labels
+probabilities = predictor.predict_proba(new_data)  # Probabilities
+
+# Apply custom threshold
+custom_threshold = 0.3  # Use the optimal threshold you found
+custom_predictions = (probabilities.iloc[:, 1] >= custom_threshold).astype(int)
+
+COMMON ISSUES & SOLUTIONS
+==========================
+
+Q: Training is too slow
+A: Reduce time_limit, use 'medium_quality' preset, or sample your data for testing
+
+Q: Poor performance on minority class (declines)
+A: Try resampling_method='smote', optimize threshold for recall, or adjust class weights
+
+Q: Out of memory
+A: Reduce num_bag_folds to 3, sample your data, or use a machine with more RAM
+
+Q: Model overfitting
+A: Check validation scores in leaderboard, adjust hyperparameters, use more CV folds
+
+Q: Need faster inference
+A: Use predictor.persist() to keep models in memory, or use specific models from ensemble
+
+TIPS FOR YOUR DATASET
+======================
+
+Given your 155:1 imbalance ratio:
+
+1. RECOMMENDED SETTINGS:
+   - eval_metric='average_precision' or 'f1'
+   - resampling_method='smote' or 'adasyn' (try both)
+   - use_sample_weights=True
+   - Optimize threshold for your business needs
+
+2. THRESHOLD SELECTION:
+   - If false negatives are costly (missing declines): optimize for recall
+   - If false positives are costly (declining good passes): optimize for precision
+   - For balance: optimize for f1 or j_statistic
+
+3. EVALUATION FOCUS:
+   - Don't just look at accuracy (will be ~99% but meaningless)
+   - Focus on: Average Precision, F1, Recall on minority class
+   - Check confusion matrix: especially False Negatives (missed declines)
+
+4. FEATURE ENGINEERING:
+   - After first model, check feature importance
+   - Consider creating interaction features for top features
+   - Remove very low importance features
+
+NEXT STEPS
+==========
+
+1. Run initial model with default settings
+2. Check results and identify issues
+3. Try different resampling methods
+4. Optimize threshold based on business requirements
+5. Fine-tune hyperparameters if needed
+6. Deploy best model
+
+Good luck with your modeling!
+"""
